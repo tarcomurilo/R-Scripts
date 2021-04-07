@@ -1,4 +1,5 @@
 
+
 # Script para rodar inventário florestal do tipo censo
 # Entradas: Arvore, Fuste, Espécie, CAP, HT
 # Formula de volume para Nova Lima - MG
@@ -37,23 +38,58 @@ names(Fito)[names(Fito) == "n"] <- "NI"
 
 #media o DAP medio
 
-Fito$"DAP Médio" <- aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x
+Fito$"DAP Médio" <- round(aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x,1)
 
 #media a altura média
 
-Fito$"Alt. Média" <- aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x
+Fito$"Alt. Média" <- round(aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x,1)
 
 #soma a área basal
 
-Fito$"Área Basal" <- aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x
+Fito$"Área Basal" <- round(aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x, 5)
 
 #soma o volume
 
-Fito$VTcc <- aggregate(rdata$VTcc, by=list(rdata$Espécie), FUN=sum)$x
+Fito$VTcc <- round(aggregate(rdata$VTcc, by=list(rdata$Espécie), FUN=sum)$x, 5)
+
+
 
 #retira o teste de fuste
 Fito <- Fito[,-Fito$Fuste]
 
+Fito <- data.frame(rbind(Fito, c("Total", sum(Fito$NI), round(mean(rdata$DAP),1), round(mean(rdata$Altura),1), round(sum(rdata$AB), 5), round(sum(rdata$VTcc),5 )))) #acrescenta as médias e totais finais
+```
+
+
+```{r}
+#monta a tabela de classes diametricas
+
+Clsn <- ceiling(max(rdata$DAP)/5) - 1 #define a maior classe
+remove(ClasV) #limpa a memoria
+ClasV <- data.frame() 
+
+wN <- 1
+while (wN <= Clsn){
+  
+  ClasV <- rbind(ClasV, (paste(wN*5,"-",(1+wN)*5, sep = "")))
+  wN <- wN + 1
+  
+} #cria a tabela de classes
+
+remove(wN) #libera a memoria
+
+colnames(ClasV)[1] <- "Classe" #muda o nome da coluna
+
+rhist <- hist(rdata$DAP, breaks=seq(5,(1+Clsn)*5,5)) #faz o histograma a cada 5 cm até o máximo
+
+ClasV$Num <- cbind(rhist[["counts"]])
+
+colnames(ClasV)[2] <- "Num.Fuste" #muda o nome da coluna
+ClasV <- data.frame(rbind(ClasV, c("Total", sum(ClasV$Num)))) #soma o total
+
+remove(rhist) #libera memoria
 
 ```
+
+
 
