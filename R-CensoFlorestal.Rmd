@@ -1,0 +1,59 @@
+
+# Script para rodar inventário florestal do tipo censo
+# Entradas: Arvore, Fuste, Espécie, CAP, HT
+# Formula de volume para Nova Lima - MG
+# Saida: Número de indivíduos, DAP médio, Altura média, Área Basal, Volume (por # espécies)
+# Saida: distribuição de diâmetro por classe iniciando de 5 cm até inf a cada 5 cm
+# Saída: distribuição de altura por histograma - média +1 desvio-padrão
+
+
+```{r}
+library(readxl)
+library(dplyr)
+remove(rdata)
+rdata = read_xlsx(file.choose())
+```
+```{r}
+#acrescenta as colunas após o CAP e calcula o DAP, AB e VTCC
+rdata$DAP <- rdata$CAP / pi
+rdata$AB <- (pi / 40000) * (rdata$DAP ^ 2)
+rdata$VTcc <- exp(-9.77830707 + 2.1472609409 * log(rdata$DAP, exp(1)) + 0.7804098114 * log(rdata$Altura, exp(1)))
+
+#reordena as colunas
+rdata <- rdata[,c(1,2,3,4,6,5,7,8)]
+```
+
+```{r}
+#elaborar lista de todas as espécies
+
+#preenche a planilha de fitossociologia
+
+#conta numero de individuos
+
+Fito <- data.frame(count(rdata, Fuste = rdata$Fuste == 1, Espécie = rdata$Espécie))
+
+Fito <- Fito[!(Fito$Fuste==FALSE),]
+names(Fito)[names(Fito) == "n"] <- "NI"
+
+#media o DAP medio
+
+Fito$"DAP Médio" <- aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x
+
+#media a altura média
+
+Fito$"Alt. Média" <- aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x
+
+#soma a área basal
+
+Fito$"Área Basal" <- aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x
+
+#soma o volume
+
+Fito$VTcc <- aggregate(rdata$VTcc, by=list(rdata$Espécie), FUN=sum)$x
+
+#retira o teste de fuste
+Fito <- Fito[,-Fito$Fuste]
+
+
+```
+
