@@ -1,5 +1,3 @@
-
-
 # Script para rodar inventário florestal do tipo censo
 # Entradas: Arvore, Fuste, Espécie, CAP, HT
 # Formula de volume para Nova Lima - MG
@@ -10,64 +8,46 @@
 
 ```{r}
 library(readxl)
-library(dplyr)
+library(writexl)
 remove(rdata)
 rdata = read_xlsx(file.choose())
+options(OutDec = ",")
 ```
 ```{r}
 #acrescenta as colunas após o CAP e calcula o DAP, AB e VTCC
 rdata$DAP <- rdata$CAP / pi
 rdata$AB <- (pi / 40000) * (rdata$DAP ^ 2)
 rdata$VTcc <- exp(-9.77830707 + 2.1472609409 * log(rdata$DAP, exp(1)) + 0.7804098114 * log(rdata$Altura, exp(1)))
-
 #reordena as colunas
 rdata <- rdata[,c(1,2,3,4,6,5,7,8)]
 ```
 
 ```{r}
 #elaborar lista de todas as espécies
-
 #preenche a planilha de fitossociologia
-
 #conta numero de individuos
-
 Fito <- data.frame(count(rdata, Fuste = rdata$Fuste == 1, Espécie = rdata$Espécie))
-
 Fito <- Fito[!(Fito$Fuste==FALSE),]
 names(Fito)[names(Fito) == "n"] <- "NI"
-
 #media o DAP medio
-
-Fito$"DAP Médio" <- round(aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x,1)
-
+Fito$"DAP.Médio" <- round(aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x,1)
 #media a altura média
-
-Fito$"Alt. Média" <- round(aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x,1)
-
+Fito$"Alt.Média" <- round(aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x,1)
 #soma a área basal
-
-Fito$"Área Basal" <- round(aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x, 5)
-
+Fito$"AB" <- round(aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x, 5)
 #soma o volume
-
 Fito$VTcc <- round(aggregate(rdata$VTcc, by=list(rdata$Espécie), FUN=sum)$x, 5)
-
-
-
 #retira o teste de fuste
 Fito <- Fito[,-Fito$Fuste]
-
 Fito <- data.frame(rbind(Fito, c("Total", sum(Fito$NI), round(mean(rdata$DAP),1), round(mean(rdata$Altura),1), round(sum(rdata$AB), 5), round(sum(rdata$VTcc),5 )))) #acrescenta as médias e totais finais
 ```
 
 
 ```{r}
 #monta a tabela de classes diametricas
-
 Clsn <- ceiling(max(rdata$DAP)/5) - 1 #define a maior classe
 remove(ClasV) #limpa a memoria
 ClasV <- data.frame() 
-
 wN <- 1
 while (wN <= Clsn){
   
@@ -75,8 +55,36 @@ while (wN <= Clsn){
   wN <- wN + 1
   
 } #cria a tabela de classes
-
 remove(wN) #libera a memoria
+colnames(ClasV)[1] <- "Classe" #muda o nome da coluna
+rhist <- hist(rdata$DAP, breaks=seq(5,(1+Clsn)*5,5), plot=FALSE) #faz o histograma a cada 5 cm até o máximo
+ClasV$Num <- cbind(rhist[["counts"]])
+colnames(ClasV)[2] <- "Num.Fuste" #muda o nome da coluna
+ClasV <- data.frame(rbind(ClasV, c("Total", sum(ClasV$Num)))) #soma o total
+remove(rhist) #libera memoria
+
+```
+
+```{r}
+#cria o gráfico de distribuição diâmetrica 
+
+plotX <- ClasV[1:Clsn,1]
+plotY <- as.numeric(ClasV[1:Clsn,2])
+plotXY <- data.frame(plotX, plotY)
+
+png("grafDD.png", height = 400, width = 600) #inicia grav. arq
+
+barplot(plotXY$plotY, ylim=c(0, (1+Clsn)*5), col="#66BB66", xlab="Classe", names.arg = plotXY$plotX, ylab="Número de Fustes", main="Distribuição Diamétrica", axes=TRUE) #plota o grafico
+
+dev.off()  #libera a area     
+```
+
+
+```{r}
+writexl::write_xlsx(list("Dados"=rdata, "Result1"=Fito, "Result2"=ClasV), "resultado.xlsx")
+```
+
+
 
 colnames(ClasV)[1] <- "Classe" #muda o nome da coluna
 
