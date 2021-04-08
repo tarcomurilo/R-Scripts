@@ -74,7 +74,7 @@ plotXY <- data.frame(plotX, plotY)
 
 png("grafDD.png", height = 400, width = 600) #inicia grav. arq
 
-barplot(plotXY$plotY, ylim=c(0, (1+Clsn)*5), col="#66BB66", xlab="Classe", names.arg = plotXY$plotX, ylab="Número de Fustes", main="Distribuição Diamétrica", axes=TRUE) #plota o grafico
+barplot(plotXY$plotY, ylim=c(0, max((plotY+10)*1.1)), col="#66BB66", xlab="Classe", names.arg = plotXY$plotX, ylab="Número de Fustes", main="Distribuição Diamétrica", axes=TRUE) #plota o grafico
 
 dev.off()  #libera a area     
 ```
@@ -83,21 +83,4 @@ dev.off()  #libera a area
 ```{r}
 writexl::write_xlsx(list("Dados"=rdata, "Result1"=Fito, "Result2"=ClasV), "resultado.xlsx")
 ```
-
-
-
-colnames(ClasV)[1] <- "Classe" #muda o nome da coluna
-
-rhist <- hist(rdata$DAP, breaks=seq(5,(1+Clsn)*5,5)) #faz o histograma a cada 5 cm até o máximo
-
-ClasV$Num <- cbind(rhist[["counts"]])
-
-colnames(ClasV)[2] <- "Num.Fuste" #muda o nome da coluna
-ClasV <- data.frame(rbind(ClasV, c("Total", sum(ClasV$Num)))) #soma o total
-
-remove(rhist) #libera memoria
-
-```
-
-
 
