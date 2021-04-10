@@ -12,7 +12,7 @@ library(writexl)
 library(ggplot2)
 remove(rdata)
 rdata = read_xlsx(file.choose())
-options(OutDec = ",")
+options(OutDec = ".")
 ```
 ```{r}
 #acrescenta as colunas após o CAP e calcula o DAP, AB e VTCC
@@ -27,20 +27,36 @@ rdata <- rdata[,c(1,2,3,4,6,5,7,8)]
 #elaborar lista de todas as espécies
 #preenche a planilha de fitossociologia
 #conta numero de individuos
+
 Fito <- data.frame(count(rdata, Fuste = rdata$Fuste == 1, Espécie = rdata$Espécie))
 Fito <- Fito[!(Fito$Fuste==FALSE),]
 names(Fito)[names(Fito) == "n"] <- "NI"
+
 #media o DAP medio
 Fito$"DAP.Médio" <- round(aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x,1)
+
 #media a altura média
 Fito$"Alt.Média" <- round(aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x,1)
+
 #soma a área basal
-Fito$"AB" <- round(aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x, 5)
+Fito$"AB" <-round(aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x, 5)
+
 #soma o volume
 Fito$VTcc <- round(aggregate(rdata$VTcc, by=list(rdata$Espécie), FUN=sum)$x, 5)
+
 #retira o teste de fuste
 Fito <- Fito[,-Fito$Fuste]
-Fito <- data.frame(rbind(Fito, c("Total", sum(Fito$NI), round(mean(rdata$DAP),1), round(mean(rdata$Altura),1), round(sum(rdata$AB), 5), round(sum(rdata$VTcc),5 )))) #acrescenta as médias e totais finais
+
+Fito <- data.frame(rbind(Fito, c("Total", sum(Fito$NI), round(mean(rdata$DAP),1), round(mean(rdata$Altura),1), round(sum(rdata$AB), 5), round(sum(rdata$VTcc),5 )))) 
+
+#acrescenta as médias e totais finais
+
+Fito$NI <- sapply(Fito$NI, as.numeric) #converte NI em numeric
+Fito$Alt.Média <- sapply(Fito$Alt.Média, as.numeric)
+Fito$DAP.Médio <- sapply(Fito$DAP.Médio, as.numeric)
+Fito$AB <- sapply(Fito$AB, as.numeric)
+Fito$VTcc <- sapply(Fito$VTcc, as.numeric)
+
 ```
 
 ```{r}
@@ -59,8 +75,10 @@ remove(wN) #libera a memoria
 colnames(ClasV)[1] <- "Classe" #muda o nome da coluna
 rhist <- hist(rdata$DAP, breaks=seq(5,(1+Clsn)*5,5), plot=FALSE) #faz o histograma a cada 5 cm até o máximo
 ClasV$Num <- cbind(rhist[["counts"]])
+ClasV$Num <- ClasV$Num
 colnames(ClasV)[2] <- "Num.Fuste" #muda o nome da coluna
 ClasV <- data.frame(rbind(ClasV, c("Total", sum(ClasV$Num)))) #soma o total
+ClasV$Num.Fuste <- sapply(ClasV$Num.Fuste, as.numeric)
 remove(rhist) #libera memoria
 
 ```
@@ -97,8 +115,7 @@ dev.off() #libera o device
 ```
 ```{r}
 
-writexl::write_xlsx(list("Dados"=rdata, "Result1"=Fito, "Result2"=ClasV), "resultado.xlsx")
+writexl::write_xlsx(list("Dados"=rdata, "Result1"=Fito, "Result2"=ClasV), "Resultado.xlsx")
 ```
-
 
 
