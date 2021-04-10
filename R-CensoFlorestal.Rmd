@@ -9,6 +9,7 @@
 ```{r}
 library(readxl)
 library(writexl)
+library(ggplot2)
 remove(rdata)
 rdata = read_xlsx(file.choose())
 options(OutDec = ",")
@@ -42,7 +43,6 @@ Fito <- Fito[,-Fito$Fuste]
 Fito <- data.frame(rbind(Fito, c("Total", sum(Fito$NI), round(mean(rdata$DAP),1), round(mean(rdata$Altura),1), round(sum(rdata$AB), 5), round(sum(rdata$VTcc),5 )))) #acrescenta as médias e totais finais
 ```
 
-
 ```{r}
 #monta a tabela de classes diametricas
 Clsn <- ceiling(max(rdata$DAP)/5) - 1 #define a maior classe
@@ -66,21 +66,39 @@ remove(rhist) #libera memoria
 ```
 
 ```{r}
-#cria o gráfico de distribuição diâmetrica 
+#cria o gráfico de distribuição diâmetrica - obsoleto
 
-plotX <- ClasV[1:Clsn,1]
-plotY <- as.numeric(ClasV[1:Clsn,2])
-plotXY <- data.frame(plotX, plotY)
+#plotX <- ClasV[1:Clsn,1]
+#plotY <- as.numeric(ClasV[1:Clsn,2])
+#plotXY <- data.frame(plotX, plotY)
 
-png("grafDD.png", height = 400, width = 600) #inicia grav. arq
+#png("grafDD.png", height = 400, width = 600) #inicia grav. arq
 
-barplot(plotXY$plotY, ylim=c(0, max((plotY+10)*1.1)), col="#66BB66", xlab="Classe", names.arg = plotXY$plotX, ylab="Número de Fustes", main="Distribuição Diamétrica", axes=TRUE) #plota o grafico
+#barplot(plotXY$plotY, ylim=c(0, max((plotY+10)*1.1)), col="#66BB66", xlab="Classe", #names.arg = plotXY$plotX, ylab="Número de Fustes", main="Distribuição Diamétrica", #axes=TRUE) #plota o grafico
 
-dev.off()  #libera a area     
+#dev.off()  #libera a area     
 ```
-
-
 ```{r}
+#cria o grafico de distribuição diametrica via ggplot2
+
+plotXY <- data.frame(X=factor(ClasV[1:Clsn,1], levels = ClasV[1:Clsn,1]), Y=as.numeric(ClasV[1:Clsn,2]))
+
+#cria uma função para gerar todos os graficos de barras no mesmo padrão
+grafico_bar <- function (datf, datx, datY, titulo, lablx, lably) {
+
+#plota o grafico no tema correto
+ggplot(datf, aes(datx,datY), ) + geom_col(fill="#225522", width = 0.6 ) + theme(panel.background = element_rect(fill="#DDEEDD", colour="#AABBAA"), plot.title = element_text(hjust=0.5)) + labs(x=lablx, y=lably) + ggtitle(titulo)
+}
+
+png("grafDD.png", height = 400, width = 600) #salva o grafico
+grafico_bar(plotXY, plotXY$X, plotXY$Y, "Distribuição Diamétrica", "Classe (cm)", "Num. Fustes") #chama a função
+dev.off() #libera o device
+
+```
+```{r}
+
 writexl::write_xlsx(list("Dados"=rdata, "Result1"=Fito, "Result2"=ClasV), "resultado.xlsx")
 ```
+
+
 
