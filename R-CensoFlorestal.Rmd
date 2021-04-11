@@ -105,24 +105,11 @@ ClasH[3,2] <- max(ifelse(tmpC$c==TRUE, tmpC$n, 0))
 
 colnames(ClasH)[2] <- "Num.Fustes"
 
-remove(tmpAlt, tmpMeanAlt, tmpSDAlt, tmpC)
+remove( tmpMeanAlt, tmpSDAlt, tmpC)
 
 ```
 
 
-```{r}
-#cria o gráfico de distribuição diâmetrica - obsoleto
-
-#plotX <- ClasV[1:Clsn,1]
-#plotY <- as.numeric(ClasV[1:Clsn,2])
-#plotXY <- data.frame(plotX, plotY)
-
-#png("grafDD.png", height = 400, width = 600) #inicia grav. arq
-
-#barplot(plotXY$plotY, ylim=c(0, max((plotY+10)*1.1)), col="#66BB66", xlab="Classe", #names.arg = plotXY$plotX, ylab="Número de Fustes", main="Distribuição Diamétrica", #axes=TRUE) #plota o grafico
-
-#dev.off()  #libera a area     
-```
 ```{r}
 #cria o grafico de distribuição diametrica via ggplot2
 
@@ -147,6 +134,18 @@ grafico_bar(plotXYh, plotXYh$X, plotXYh$Y, "Distribuição Hipsométrica", "Clas
 dev.off() #libera o device
 
 ```
+
+```{r}
+#plota o grafico de estratificação vertical
+grafico_estv <- function(X){
+  ggplot(X, aes(c(x=1:nrow(X)),y=X[,1], fill=as.factor(X[,2])),) + geom_col() + scale_fill_manual(values=c("#779966","#88AA88", "#557755"), labels=c("Estrato inferior", "Estrato médio", "Estrato superior")) + geom_line(y=mean(X[,1])-sd(X[,1]) , color="#223344") + geom_line(y=mean(X[,1])+sd(X[,1]), color="#885555") + labs(title="Perfil Vertical da Floresta", x="Indivíduo", y="Altura", fill="Legenda") + theme(legend.position="bottom", panel.background = element_rect(fill="#DDEEDD", colour = "#CCCCDD"), plot.title = element_text(hjust=0.5))
+}
+
+png("grafPV.png", height = 400, width = 600) #salva o grafic
+grafico_estv(tmpAlt)
+
+```
+
 ```{r}
 rdata$DAP <- round(rdata$DAP,2)
 rdata$AB <- round(rdata$AB,5)
@@ -194,8 +193,9 @@ openxlsx::setColWidths(wb, "Resultados", cols = 1:stcol, widths = "auto")
 openxlsx::addWorksheet(wb, "Graficos")
 openxlsx::insertImage(wb,"Graficos", "grafDD.png", startRow = 2, startCol = 2, width = 6, height=4)
 openxlsx::insertImage(wb,"Graficos", "grafDH.png", startRow = 2, startCol = 10, width = 6, height=4)
+openxlsx::insertImage(wb,"Graficos", "grafPV.png", startRow = 2, startCol = 18, width = 6, height=4)
 
-openxlsx::saveWorkbook(wb, "results.xlsx", overwrite = TRUE)
+openxlsx::saveWorkbook(wb, "Result-Censo.xlsx", overwrite = TRUE)
 
 
 ```
