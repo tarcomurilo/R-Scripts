@@ -1,202 +1,235 @@
-# Script para rodar inventário florestal do tipo censo
-# Entradas: Arvore, Fuste, Espécie, CAP, HT
-# Formula de volume para Nova Lima - MG
-# Saida: Número de indivíduos, DAP médio, Altura média, Área Basal, Volume (por # espécies)
-# Saida: distribuição de diâmetro por classe iniciando de 5 cm até inf a cada 5 cm
-# Saída: distribuição de altura por histograma - média +1 desvio-padrão
-
+```{r}
+# Executa a amostragem casual simples para inventário florestal na região de nova lima mg
+#Entrada: Parcela, árvore, fuste, espécie, CAP, altura
+#Saida: fitossociologia, volumetria, parametros da amostragem, distribuição de altura e diamétrica 
+```
 
 ```{r}
-library(readxl)
-library(writexl)
+#bibliotecas e importações
+
 library(openxlsx)
 library(ggplot2)
-remove(rdata)
-rdata = read_xlsx(file.choose())
+library(dplyr)
 options(OutDec = ".")
-```
-```{r}
-#acrescenta as colunas após o CAP e calcula o DAP, AB e VTCC
-rdata$DAP <- rdata$CAP / pi
-rdata$AB <- (pi / 40000) * (rdata$DAP ^ 2)
-rdata$VTcc <- exp(-9.77830707 + 2.1472609409 * log(rdata$DAP, exp(1)) + 0.7804098114 * log(rdata$Altura, exp(1)))
-#reordena as colunas
-rdata <- rdata[,c(1,2,3,4,6,5,7,8)]
-```
-
-```{r}
-#elaborar lista de todas as espécies
-#preenche a planilha de fitossociologia
-#conta numero de individuos
-
-Fito <- data.frame(count(rdata, Fuste = rdata$Fuste == 1, Espécie = rdata$Espécie))
-Fito <- Fito[!(Fito$Fuste==FALSE),]
-names(Fito)[names(Fito) == "n"] <- "NI"
-
-#media o DAP medio
-Fito$"DAP.Médio" <- round(aggregate(rdata$DAP, by=list(rdata$Espécie), FUN=mean)$x,1)
-
-#media a altura média
-Fito$"Alt.Média" <- round(aggregate(rdata$Altura, by=list(rdata$Espécie), FUN=mean)$x,1)
-
-#soma a área basal
-Fito$"AB" <-round(aggregate(rdata$AB, by=list(rdata$Espécie), FUN=sum)$x, 5)
-
-#soma o volume
-Fito$VTcc <- round(aggregate(rdata$VTcc, by=list(rdata$Espécie), FUN=sum)$x, 5)
-
-#retira o teste de fuste
-Fito <- Fito[,-Fito$Fuste]
-
-Fito <- data.frame(rbind(Fito, c("Total", sum(Fito$NI), round(mean(rdata$DAP),1), round(mean(rdata$Altura),1), round(sum(rdata$AB), 5), round(sum(rdata$VTcc),5 )))) 
-
-#acrescenta as médias e totais finais
-
-Fito$NI <- sapply(Fito$NI, as.numeric) #converte NI em numeric
-Fito$Alt.Média <- sapply(Fito$Alt.Média, as.numeric)
-Fito$DAP.Médio <- sapply(Fito$DAP.Médio, as.numeric)
-Fito$AB <- sapply(Fito$AB, as.numeric)
-Fito$VTcc <- sapply(Fito$VTcc, as.numeric)
 
 ```
 
 ```{r}
-#monta a tabela de classes diametricas
-Clsn <- ceiling(max(rdata$DAP)/5) - 1 #define a maior classe
-remove(ClasV) #limpa a memoria
-ClasV <- data.frame() 
-wN <- 1
-while (wN <= Clsn){
+#funções utilizadas
+
+#importação de dados
+ImportarDados <- function(){
+ 
+  return(openxlsx::read.xlsx(file.choose()))
+}
+
+#Acrescenta Colunas de Dados: dap, AB, Vol
+calcDAV <- function(DadosTemp){
   
-  ClasV <- rbind(ClasV, (paste(wN*5,"-",(1+wN)*5, sep = "")))
-  wN <- wN + 1
+  DadosTemp$DAP <- (DadosTemp$CAP / pi)
+  DadosTemp$AB <- (pi/40000) * (DadosTemp$DAP ^ 2)
+  DadosTemp$VTcc <- exp(-9.77830707 + 2.1472609409 * log(DadosTemp$DAP, exp(1)) + 0.7804098114 * log(DadosTemp$Altura, exp(1)))
+  DadosTemp <- DadosTemp[, c(1, 2, 3, 4, 5, 7, 6, 8, 9)] #modificar ordem das colunas
   
-} #cria a tabela de classes
-remove(wN) #libera a memoria
-colnames(ClasV)[1] <- "Classe" #muda o nome da coluna
-rhist <- hist(rdata$DAP, breaks=seq(5,(1+Clsn)*5,5), plot=FALSE) #faz o histograma a cada 5 cm até o máximo
-ClasV$Num <- cbind(rhist[["counts"]])
-ClasV$Num <- ClasV$Num
-colnames(ClasV)[2] <- "Num.Fuste" #muda o nome da coluna
-ClasV <- data.frame(rbind(ClasV, c("Total", sum(ClasV$Num)))) #soma o total
-ClasV$Num.Fuste <- sapply(ClasV$Num.Fuste, as.numeric)
-remove(rhist) #libera memoria
+  return(DadosTemp)
+}
 
-```
+#calcula a tabela de volume por parcela
+calcVolumeTab <- function(DadosTemp){
+  
+  DadosVol <- aggregate(DadosTemp$VTcc, by=list(DadosTemp$Parcela), FUN=sum)
+  colnames(DadosVol)[c(1,2)]<- c("Parcela","VTcc", "VolST")
+  DadosVol$VolST <- DadosVol$VTcc * 1.5
+  
+  return(DadosVol)
+}
 
-```{r}
+#Recebe os parametros do inventário. Padrão: AreaParc=300, AreaTotal=2, erro=10, confi=90
+receberParametros <- function(){
+    
+    #readline()
+    #AreaTotal <- as.numeric(readline("Digite a área total em hectares: ")) 
+    #AreaParc <- as.numeric(readline("Digite a área da parcela em m²: "))
+    #ErroMax <- as.numeric(readline("Digite o erro máximo admissível: "))
+    #Probabilidade <- as.numeric(readline("Digite o nível de probabilidade: ")) 
+  
+    return(data.frame(AreaTotal = 2, AreaParc = 300, ErroMax = 10, Probabilidade = 90)) 
+      
+}
+
+#calcula o inverso de T bicaudal - equivalente ao INV.T.BC no excel
+inv.t.bc <- function(p, gl) {
+  invt <- qt(1-(((100-p)/100)/2),gl)
+ 
+   return(invt)
+}
+
+#calcula os parametros do inventário
+calcParamInventario <- function(DadosVol, Parametros){
+    fatorEstereo <- 1.5
+    ParamACS <- data.frame(
+    Parâmetro = c("Área total", "Vol. Total Mensurado", "N. Parc. Possíveis", 
+                   "Área da parcela", "N. Parc. Lançadas (n)", "Média", 
+                   "Variância", "Desvio-padrão", "Valor de t",
+                   "Erro Máximo Admissível", "Coeficiente de Variação", "Erro-padrão da média","Erro de amostragem",
+                   "N. Parcelas Necessárias", "Vol. Mínimo", "Vol. Médio", "Vol. Máximo", "St. Mínimo", "St. Médio", "St. Máximo"  ),
+   Valor = 0,
+   
+   Unidade = c("ha", "m³", "un", 
+               "m²", "un","m³",
+               "m³²", "m³", paste(as.character(Parametros$Probabilidade), "%"),
+               "%", "%", "%", "%",
+               "un","m³/ha", "m³/ha", "m³/ha",
+               "st/ha", "st/ha", "st/ha")
+   
+   )
+  
+    #calcular cada parâmetro separadamente antes de passar para o dataframe
+    #Variáveis Temporarias com a letra t neste contexto
+      tMedia <- mean(DadosVol$VTcc)
+      tDesvioPadrao <- sd(DadosVol$VTcc)
+      tVariancia <- tDesvioPadrao ^ 2
+      tCoefVariacao <- tDesvioPadrao / tMedia
+      tValorT <- inv.t.bc(Parametros$Probabilidade, nrow(DadosVol)-1)
+      tNumMaxParcelas <- as.integer(ceiling((Parametros$AreaTotal * 10000) / Parametros$AreaParc))
+     
+       #valor de erro padrao da media (amostra finita ou infinita)
+      if (nrow(DadosVol)/tNumMaxParcelas > 0.02) {
+        tErroPadMedia <- sqrt((tVariancia / nrow(DadosVol)) * (1 - (nrow(DadosVol) / tNumMaxParcelas)))
+      } else {
+        tErroPadMedia <- sqrt(tVariancia/nrow(DadosVol))
+      }
+      tErroPadMedia <- tErroPadMedia
+      
+      tErroAmostragem <- (tErroPadMedia * tValorT) / tMedia
+      
+      #valor de n (amostra finita ou infinita)
+      if (nrow(DadosVol)/tNumMaxParcelas > 0) {
+        tValorNn <- ((tValorT ^ 2) * (tCoefVariacao ^ 2)) / (((Parametros$ErroMax/100)^2) + (((tValorT ^ 2) * (tCoefVariacao ^ 2))/tNumMaxParcelas))
+        
+      } else {
+        tValorNn <- ((tValorT ^ 2) * (tCoefVariacao ^ 2)) / (((Parametros$ErroMax/100)^2))
+      }
+      
+      tValorNn <- as.integer(ceiling(tValorNn))
+      tVolMed <- sum(DadosVol$VTcc) / (nrow(DadosVol)*(Parametros$AreaParc/10000))
+      tVolMin <- tVolMed - tVolMed * tErroAmostragem
+      tVolMax <- tVolMed + tVolMed * tErroAmostragem
+      
+      ParamACS$Valor <- c(Parametros$AreaTotal, sum(DadosVol$VTcc), tNumMaxParcelas,
+                          Parametros$AreaParc, nrow(DadosVol), round(tMedia,5),
+                          tVariancia, tDesvioPadrao, tValorT,
+                          Parametros$ErroMax, tCoefVariacao * 100, tErroPadMedia * 100, tErroAmostragem * 100,
+                          tValorNn, tVolMin, tVolMed, tVolMax, tVolMin * fatorEstereo, tVolMed * fatorEstereo, tVolMax * fatorEstereo)
+
+    return(ParamACS)
+} 
+
+#retorna a distribuição diamétrica
+calcDistDiametrica <- function(DadosDiam){
+  
+  #monta a tabela de classes diametricas
+  numClasses <- ceiling(max(DadosDiam$DAP)/5) - 1 #define a maior classe
+  numDiametros <- data.frame() 
+  
+  contWhile <- 1
+  while (contWhile <= numClasses){
+  
+    numDiametros <- rbind(numDiametros, (paste(contWhile * 5, "-",(1 + contWhile) * 5, sep = "")))
+    contWhile <- contWhile + 1
+  
+  }
+  
+  #cria a tabela de classes
+  colnames(numDiametros)[1] <- "Classe" #muda o nome da coluna
+  DiamHisto <- hist(DadosDiam$DAP, breaks=seq(5,(1+numClasses)*5,5), plot=FALSE) #faz o histograma a cada 5 cm até o máximo
+  numDiametros$Num <- cbind(DiamHisto[["counts"]])
+  numDiametros$Num <- numDiametros$Num
+  colnames(numDiametros)[2] <- "Num.Fuste" #muda o nome da coluna
+  numDiametros <- data.frame(rbind(numDiametros, c("Total", sum(numDiametros$Num)))) #soma o total
+  numDiametros$Num.Fuste <- sapply(numDiametros$Num.Fuste, as.numeric)
+ 
+  return(numDiametros)
+
+}
+
+#retorna a distribuição de alturas
+calcDistAltura <- function(DadosAltura){
+
 #monta a tabela de classes de altura
-ClasH <- data.frame("Classe" = c(paste(as.character(min(rdata$Altura))," - ",as.character(round(mean(rdata$Altura, na.rm=TRUE)-sd(rdata$Altura, na.rm=TRUE), 1)), sep=""),paste( as.character(round(mean(rdata$Altura, na.rm=TRUE)-sd(rdata$Altura, na.rm=TRUE), 1)), " - ", as.character( round( mean( rdata$Altura, na.rm=TRUE) + sd(rdata$Altura, na.rm=TRUE), 1)), sep="" ) ,paste( as.character( round( mean( rdata$Altura, na.rm=TRUE) + sd(rdata$Altura, na.rm=TRUE), 1))," - ", as.character(round(max(rdata$Altura, na.rm=TRUE),1)), sep="")))
+  numAlturas <- data.frame("Classe" = c(paste(as.character(round(min(DadosAltura$Altura)),1)," - ",as.character(round(mean(DadosAltura$Altura, na.rm=TRUE)-sd(DadosAltura$Altura, na.rm=TRUE), 1)),
+                      sep=""),paste(as.character(round(mean(DadosAltura$Altura, na.rm=TRUE) - sd(DadosAltura$Altura, na.rm=TRUE), 1)), " - ", as.character(round(mean(DadosAltura$Altura, na.rm=TRUE) +                           sd(DadosAltura$Altura, na.rm=TRUE), 1)), sep="" ), paste( as.character(round(mean(DadosAltura$Altura, na.rm=TRUE) + sd(DadosAltura$Altura, na.rm=TRUE), 1))," - ",                                          as.character(round(max(DadosAltura$Altura, na.rm=TRUE),1)), sep="")))
 
-tmpAlt <- data.frame(alt=rdata$Altura, cls=0)
-tmpMeanAlt <- mean(tmpAlt$alt, na.rm=TRUE)
-tmpSDAlt <- sd(tmpAlt$alt, na.rm = TRUE)
+  tempAlturas <- data.frame(Altura=DadosAltura$Altura, cls=0)
+  tempAlturaMedia <- mean(tempAlturas$Altura, na.rm=TRUE)
+  tempAlturaDesvPad <- sd(tempAlturas$Altura, na.rm = TRUE)
 
-tmpAlt$cls <- ifelse(tmpAlt$alt < tmpMeanAlt-tmpSDAlt,1,ifelse(tmpAlt$alt >= tmpMeanAlt+tmpSDAlt, 3, 2))
+  tempAlturas$cls <- ifelse(tempAlturas$Altura < tempAlturaMedia - tempAlturaDesvPad, 1 , ifelse(tempAlturas$Altura >= tempAlturaMedia + tempAlturaDesvPad, 3, 2))
 
-tmpC <- count(tmpAlt, c=cls==1)
-ClasH[1,2] <- max(ifelse(tmpC$c==TRUE, tmpC$n, 0))
+  tempContador <- count(tempAlturas, tempClasseNumero=cls==1)
+  numAlturas[1,2] <- max(ifelse(tempContador$tempClasseNumero==TRUE, tempContador$n, 0))
 
-tmpC <- count(tmpAlt, c=cls==2)
-ClasH[2,2] <- max(ifelse(tmpC$c==TRUE, tmpC$n, 0))
+  tempContador <- count(tempAlturas, tempClasseNumero=cls==2)
+  numAlturas[2,2] <- max(ifelse(tempContador$tempClasseNumero==TRUE, tempContador$n, 0))
 
-tmpC <- count(tmpAlt, c=cls==3)
-ClasH[3,2] <- max(ifelse(tmpC$c==TRUE, tmpC$n, 0))
+  tempContador <- count(tempAlturas, tempClasseNumero=cls==3)
+  numAlturas[3,2] <- max(ifelse(tempContador$tempClasseNumero==TRUE, tempContador$n, 0))
 
-colnames(ClasH)[2] <- "Num.Fustes"
+  colnames(numAlturas)[2] <- "Num.Fustes"
+  
+  return(numAlturas)
 
-remove( tmpMeanAlt, tmpSDAlt, tmpC)
-
-```
-
-
-```{r}
-#cria o grafico de distribuição diametrica via ggplot2
-
-plotXY <- data.frame(X=factor(ClasV[1:Clsn,1], levels = ClasV[1:Clsn,1]), Y=as.numeric(ClasV[1:Clsn,2]))
-
-#cria uma função para gerar todos os graficos de barras no mesmo padrão
-grafico_bar <- function (datf, datx, datY, titulo, lablx, lably) {
-
-#plota o grafico no tema correto
-ggplot(datf, aes(datx,datY), ) + geom_col(fill="#225522", width = 0.6 ) + theme(panel.background = element_rect(fill="#DDEEDD", colour="#AABBAA"), plot.title = element_text(hjust=0.5)) + labs(x=lablx, y=lably) + ggtitle(titulo)
 }
 
-png("grafDD.png", height = 400, width = 600) #salva o grafico
-grafico_bar(plotXY, plotXY$X, plotXY$Y, "Distribuição Diamétrica", "Classe (cm)", "Num. Fustes") #chama a função
-dev.off() #libera o device
+ #monta a tabela de classes de altura
+calcTabelaClasseAltura <- function(DadosAltura){
+  
+  
+  tempAlturas <- data.frame(Altura=DadosAltura$Altura, cls=0)
+  tempMediaAltura <- mean(tempAlturas$Altura, na.rm=TRUE)
+  tempDesvPadAltura <- sd(tempAlturas$Altura, na.rm = TRUE)
 
+  tempAlturas$cls <- ifelse(tempAlturas$Altura < tempMediaAltura - tempDesvPadAltura, 1, ifelse(tempAlturas$Altura >= tempMediaAltura+tempDesvPadAltura, 3, 2))
 
-plotXYh <- data.frame(X=factor(ClasH[1:3,1], levels = ClasH[1:3,1]), Y=as.numeric(ClasH[1:3,2])) 
+  colnames(tempAlturas)[2] <- "Classe"
 
-png("grafDH.png", height = 400, width = 600) #salva o grafico
-grafico_bar(plotXYh, plotXYh$X, plotXYh$Y, "Distribuição Hipsométrica", "Classe (m)", "Num. Fustes") #chama a função
-dev.off() #libera o device
+  return(tempAlturas)
+  
+}
 
-```
-
-```{r}
 #plota o grafico de estratificação vertical
-grafico_estv <- function(X){
-  ggplot(X, aes(c(x=1:nrow(X)),y=X[,1], fill=as.factor(X[,2])),) + geom_col() + scale_fill_manual(values=c("#779966","#88AA88", "#557755"), labels=c("Estrato inferior", "Estrato médio", "Estrato superior")) + geom_line(y=mean(X[,1])-sd(X[,1]) , color="#223344") + geom_line(y=mean(X[,1])+sd(X[,1]), color="#885555") + labs(title="Perfil Vertical da Floresta", x="Indivíduo", y="Altura", fill="Legenda") + theme(legend.position="bottom", panel.background = element_rect(fill="#DDEEDD", colour = "#CCCCDD"), plot.title = element_text(hjust=0.5))
+plotarEstratVertical <- function(DadosAltura){
+  grafico <- (ggplot(DadosAltura, aes(c(x=1:nrow(DadosAltura)),y=DadosAltura[,1], fill=as.factor(DadosAltura[,2]) ),) + 
+    geom_col() + 
+    scale_fill_manual(values=c("#779966","#88AA88", "#557755"), labels=c("Estrato inferior", "Estrato médio", "Estrato superior")) + 
+    geom_line(y=mean(DadosAltura[,1])-sd(DadosAltura[,1]), color="#885555") +
+    geom_line(y=mean(DadosAltura[,1])+sd(DadosAltura[,1]), color="#557755") + 
+ 
+    labs(title="Perfil Vertical da Floresta", x="Indivíduo", y="Altura", fill="Legenda") + 
+    theme(legend.position="bottom", panel.background = element_rect(fill="#DDEEDD", colour = "#CCCCDD"), plot.title = element_text(hjust=0.5)))
+    
+   return(grafico)
 }
 
-png("grafPV.png", height = 400, width = 600) #salva o grafic
-grafico_estv(tmpAlt)
 
 ```
 
 ```{r}
-rdata$DAP <- round(rdata$DAP,2)
-rdata$AB <- round(rdata$AB,5)
-rdata$VTcc <- round(rdata$VTcc, 5)
 
-#cria o arquivo xlsx formatado via openxlsx
+#Corpo principal
 
-wb <- openxlsx::createWorkbook()
+#importação dos dados
 
-openxlsx::addWorksheet(wb,"Dados")
+#remove(DadosImportados)
+#DadosImportados <- ImportarDados()
+#DadosImportados <- calcDAV(DadosImportados)
+#DadosVol <- calcVolumeTab(DadosImportados)
 
-hs <- openxlsx::createStyle(fontColour = "#000000", halign = "center", fgFill = "#99BB99", border = "TopBottom", borderColour = "#000000") #estilo do header 
-
-bs0 <- openxlsx::createStyle(fontColour = "#000000", fgFill = "#FFFFFF", border="Bottom", borderColour = "#000000") #estilo do corpo
-
-bs1 <- openxlsx::createStyle(fontColour = "#000000", fgFill = "#FFFFFF", border="TopBottom", borderColour = "#000000") #estilo do corpo
-
-bs2 <- openxlsx::createStyle(fontColour = "#000000", fgFill = "#FFFFFF", borderStyle="none", borderColour = "#000000") #estilo do corpo
-
-openxlsx::writeData(wb,"Dados",rdata, headerStyle = hs)
-openxlsx::addStyle(wb, sheet = "Dados", bs2, rows = 2:nrow(rdata), cols=1:ncol(rdata), gridExpand = TRUE)
-openxlsx::addStyle(wb, sheet = "Dados", bs0, rows = nrow(rdata)+1, cols=1:ncol(rdata), gridExpand = TRUE)
-openxlsx::setColWidths(wb, "Dados", cols = 1:ncol(rdata), widths = "auto")
-
-openxlsx::addWorksheet(wb, "Resultados")
-stcol <- 1
-openxlsx::writeData(wb,"Resultados", Fito, startCol = stcol, startRow = 1, headerStyle = hs)
-openxlsx::addStyle(wb, sheet = "Resultados", bs2, rows = 2:nrow(Fito), cols=1:ncol(Fito), gridExpand = TRUE)
-openxlsx::addStyle(wb, sheet = "Resultados", bs1, rows = nrow(Fito)+1, cols=1:ncol(Fito), gridExpand = TRUE)
-
-
-stcol <- stcol + ncol(Fito) + 1
-openxlsx::writeData(wb,"Resultados", ClasV, startCol = stcol, startRow = 1, headerStyle = hs)
-openxlsx::addStyle(wb, sheet = "Resultados", bs2, rows = 2:nrow(ClasV), cols=stcol:(stcol+ncol(ClasV)-1), gridExpand = TRUE)
-openxlsx::addStyle(wb, sheet = "Resultados", bs1, rows = nrow(ClasV)+1, cols=stcol:(stcol+ncol(ClasV)-1), gridExpand = TRUE)
-
-
-stcol <- stcol + ncol(ClasV) + 1
-openxlsx::writeData(wb,"Resultados", ClasH, startCol = stcol, startRow = 1, headerStyle = hs)
-openxlsx::addStyle(wb, sheet = "Resultados", bs2, rows = 2:nrow(ClasH), cols=stcol:(stcol+ncol(ClasH)-1), gridExpand = TRUE)
-openxlsx::addStyle(wb, sheet = "Resultados", bs0, rows = nrow(ClasH)+1, cols=stcol:(stcol+ncol(ClasH)-1), gridExpand = TRUE)
-stcol <- stcol + ncol(ClasH)+1
-openxlsx::setColWidths(wb, "Resultados", cols = 1:stcol, widths = "auto")
-
-openxlsx::addWorksheet(wb, "Graficos")
-openxlsx::insertImage(wb,"Graficos", "grafDD.png", startRow = 2, startCol = 2, width = 6, height=4)
-openxlsx::insertImage(wb,"Graficos", "grafDH.png", startRow = 2, startCol = 10, width = 6, height=4)
-openxlsx::insertImage(wb,"Graficos", "grafPV.png", startRow = 2, startCol = 18, width = 6, height=4)
-
-openxlsx::saveWorkbook(wb, "Result-Censo.xlsx", overwrite = TRUE)
-
+Parametros <- receberParametros()
+Volumetria <- calcParamInventario(DadosVol, Parametros)
+DistDiametrica <- calcDistDiametrica(DadosImportados)
+DistAltura <- calcDistAltura(DadosImportados)
+ClassesAltura <- plotarEstratVertical(calcTabelaClasseAltura(DadosImportados))
 
 ```
 
