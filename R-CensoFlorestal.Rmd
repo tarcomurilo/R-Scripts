@@ -211,6 +211,18 @@ plotarEstratVertical <- function(DadosAltura){
    return(grafico)
 }
 
+#plota o gráfico de distribuições
+
+  #gráfico de barras para distribuição diamétrica
+  plotarGrafBarras <- function (DadosDistribuicao, eixoX, eixoY, titulo, rotuloX, rotuloY) {
+
+  grafico <- ggplot(DadosDistribuicao, aes(eixoX, eixoY), ) + geom_col(fill="#225522", width = 0.6 ) + 
+             theme(panel.background = element_rect(fill="#DDEEDD", colour="#AABBAA"), plot.title = element_text(hjust=0.5)) +
+             labs(x=rotuloX, y=rotuloY) + ggtitle(titulo)
+  
+  return(grafico)
+
+  }
 
 ```
 
@@ -229,7 +241,13 @@ Parametros <- receberParametros()
 Volumetria <- calcParamInventario(DadosVol, Parametros)
 DistDiametrica <- calcDistDiametrica(DadosImportados)
 DistAltura <- calcDistAltura(DadosImportados)
-ClassesAltura <- plotarEstratVertical(calcTabelaClasseAltura(DadosImportados))
+GraficoEstratoAltura <- plotarEstratVertical(calcTabelaClasseAltura(DadosImportados))
+
+tempDistAlturas <- data.frame(X=factor(DistAltura[1:3,1], levels = DistAltura[1:3,1]), Y=as.numeric(DistAltura[1:3,2]))
+GraficoClasseAltura <- grafico_bar(tempDistAlturas, tempDistAlturas$X, tempDistAlturas$Y, "Distribuição Hipsométrica", "Classe (m)", "Num. Fustes") #chama a função
+
+tempDistDiam <- data.frame(X=factor(DistDiametrica[1:nrow(DistDiametrica)-1,1], levels = DistDiametrica[1:nrow(DistDiametrica)-1,1]), Y=as.numeric(DistDiametrica[1:nrow(DistDiametrica)-1,2]))
+GraficoClasseDiametro <- grafico_bar(tempDistDiam, tempDistDiam$X, tempDistDiam$Y, "Distribuição Diamétrica", "Classe (cm)", "Num. Fustes") #chama a função
 
 ```
 
