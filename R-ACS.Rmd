@@ -184,7 +184,6 @@ calcDistAltura <- function(DadosAltura){
  #monta a tabela de classes de altura
 calcTabelaClasseAltura <- function(DadosAltura){
   
-  
   tempAlturas <- data.frame(Altura=DadosAltura$Altura, cls=0)
   tempMediaAltura <- mean(tempAlturas$Altura, na.rm=TRUE)
   tempDesvPadAltura <- sd(tempAlturas$Altura, na.rm = TRUE)
@@ -235,14 +234,13 @@ calcTabelaFito <- function(DadosFito, Parametros){
   tempNPO <- DadosFito %>% group_by(Especie, Parcela) %>% count
   tempNPO <- tempNPO %>% group_by(Especie) %>% count
   
-  tabelaFito$NPO <- sapply(tempNPO[2], as.integer)
-  tabelaFito$DAP.Médio <- sapply(aggregate(DadosFito$DAP, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
-  tabelaFito$Altura.Média <- sapply(aggregate(DadosFito$Altura, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
-  tabelaFito$AB <- sapply(aggregate(DadosFito$AB, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
-  
-  colnames(tabelaFito) <- c("Espécie", "NI", "NPO", "DAP. Médio", "Alt. Média", "AB")
-  
+  colnames(tabelaFito) <- c("Especie", "NI")   
   numParcelas <- nrow(DadosFito %>% group_by(Parcela) %>% count)
+  
+  tabelaFito$NPO <- sapply(tempNPO[2], as.integer)
+  tabelaFito$DAP <- sapply(aggregate(DadosFito$DAP, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
+  tabelaFito$Alt <- sapply(aggregate(DadosFito$Altura, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
+  tabelaFito$AB <- sapply(aggregate(DadosFito$AB, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
   tabelaFito$DA <- sapply((tabelaFito$NI / (numParcelas * (Parametros$AreaParc/10000))), as.numeric)
   tabelaFito$DR <- tabelaFito$DA / sum(tabelaFito$DA)
   tabelaFito$DoA <- sapply((tabelaFito$AB / (numParcelas * (Parametros$AreaParc/10000))), as.numeric)
@@ -252,10 +250,44 @@ calcTabelaFito <- function(DadosFito, Parametros){
   tabelaFito$FA <- sapply((tabelaFito$NPO / numParcelas), as.numeric)
   tabelaFito$FR <- tabelaFito$FA / sum(tabelaFito$FA)
   tabelaFito$IVI <- tabelaFito$DR + tabelaFito$DoR + tabelaFito$FR
-  tabelaFito$"IVI %" <- tabelaFito$IVI / sum(tabelaFito$IVI)
+  tabelaFito$IVIR <- tabelaFito$IVI / sum(tabelaFito$IVI)
   
+  tabelaTotal <- data.frame(Especie = "Total", 
+                            NI = sum(tabelaFito$NI), 
+                            NPO = numParcelas, 
+                            DAP = mean(tabelaFito$DAP), 
+                            Alt = mean(tabelaFito$Alt),
+                            AB = sum(tabelaFito$AB),
+                            DA = sum(tabelaFito$DA),
+                            DR = sum(tabelaFito$DR),
+                            DoA = sum(tabelaFito$DoA),
+                            DoR = sum(tabelaFito$DoR),
+                            FA = numParcelas,
+                            FR = sum(tabelaFito$FR),
+                            IVI = sum(tabelaFito$IVI),
+                            IVIR = sum(tabelaFito$IVIR)
+                            )
+  
+  
+  tabelaFito <- bind_rows(tabelaFito, tabelaTotal)
+  
+  tabelaFito$DAP <- round(tabelaFito$DAP, 1)
+  tabelaFito$Alt <- round(tabelaFito$Alt, 1)
+  tabelaFito$AB <- round(tabelaFito$AB, 5)
+  tabelaFito$DA <- round(tabelaFito$DA, 5)
+  tabelaFito$DR <- round(tabelaFito$DR, 2)
+  tabelaFito$DoA <- round(tabelaFito$DoA, 5)
+  tabelaFito$DoR <- round(tabelaFito$DoR, 2)
+  tabelaFito$FA <- round(tabelaFito$FA, 5)
+  tabelaFito$FR <- round(tabelaFito$FR, 2)
+  tabelaFito$IVI <- round(tabelaFito$IVI, 2)
+  tabelaFito$IVIR <- round(tabelaFito$IVIR, 2)
+  
+  colnames(tabelaFito) <- c("Espécie", "NI", "NPO", "DAP Médio", "Alt. Média", "AB", "DA", "DR", "DoA", "DoR", "FA", "FR", "IVI", "IVI %")
+
   return(tabelaFito)
 }
+
 
 ```
 
@@ -281,7 +313,7 @@ GraficoClasseAltura <- plotarGrafBarras(tempDistAlturas, tempDistAlturas$X, temp
 tempDistDiam <- data.frame(X=factor(DistDiametrica[1:nrow(DistDiametrica)-1,1], levels = DistDiametrica[1:nrow(DistDiametrica)-1,1]), Y=as.numeric(DistDiametrica[1:nrow(DistDiametrica)-1,2]))
 GraficoClasseDiametro <- plotarGrafBarras(tempDistDiam, tempDistDiam$X, tempDistDiam$Y, "Distribuição Diamétrica", "Classe (cm)", "Num. Fustes") #chama a função
 
-Fitossociologia <- calcTabelaFito(DadosImportados, Parametros)
+Fitossociologia <- calcTabelaFito(DadosImportados, Parametros) #chama a função de fitossociologia
 GraficoEstratoAltura
 GraficoClasseAltura
 GraficoClasseDiametro
