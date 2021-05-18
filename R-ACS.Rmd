@@ -145,10 +145,10 @@ calcDistDiametrica <- function(DadosDiam){
   DiamHisto <- hist(DadosDiam$DAP, breaks=seq(5,(1+numClasses)*5,5), plot=FALSE) #faz o histograma a cada 5 cm até o máximo
   numDiametros$Num <- cbind(DiamHisto[["counts"]])
   numDiametros$Num <- numDiametros$Num
-  colnames(numDiametros)[2] <- "Num.Fuste" #muda o nome da coluna
   numDiametros <- data.frame(rbind(numDiametros, c("Total", sum(numDiametros$Num)))) #soma o total
-  numDiametros$Num.Fuste <- sapply(numDiametros$Num.Fuste, as.numeric)
- 
+  numDiametros[,2] <- sapply(numDiametros[,2], as.numeric)
+  colnames(numDiametros)[2] <- "Num. Fustes" #muda o nome da coluna
+  
   return(numDiametros)
 
 }
@@ -175,7 +175,7 @@ calcDistAltura <- function(DadosAltura){
   tempContador <- count(tempAlturas, tempClasseNumero=cls==3)
   numAlturas[3,2] <- max(ifelse(tempContador$tempClasseNumero==TRUE, tempContador$n, 0))
 
-  colnames(numAlturas)[2] <- "Num.Fustes"
+  colnames(numAlturas)[2] <- "Num. Fustes"
   
   return(numAlturas)
 
@@ -207,6 +207,7 @@ plotarEstratVertical <- function(DadosAltura){
     labs(title="Perfil Vertical da Floresta", x="Indivíduo", y="Altura", fill="Legenda") + 
     theme(legend.position="bottom", panel.background = element_rect(fill="#DDEEDD", colour = "#CCCCDD"), plot.title = element_text(hjust=0.5)))
     
+    
    return(grafico)
 }
 
@@ -218,6 +219,8 @@ plotarEstratVertical <- function(DadosAltura){
   grafico <- ggplot(DadosDistribuicao, aes(eixoX, eixoY), ) + geom_col(fill="#225522", width = 0.6 ) + 
              theme(panel.background = element_rect(fill="#DDEEDD", colour="#AABBAA"), plot.title = element_text(hjust=0.5)) +
              labs(x=rotuloX, y=rotuloY) + ggtitle(titulo)
+  
+ 
   
   return(grafico)
 
@@ -237,13 +240,13 @@ calcTabelaFito <- function(DadosFito, Parametros){
   colnames(tabelaFito) <- c("Especie", "NI")   
   numParcelas <- nrow(DadosFito %>% group_by(Parcela) %>% count)
   
-  tabelaFito$NPO <- sapply(tempNPO[2], as.integer)
-  tabelaFito$DAP <- sapply(aggregate(DadosFito$DAP, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
-  tabelaFito$Alt <- sapply(aggregate(DadosFito$Altura, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
-  tabelaFito$AB <- sapply(aggregate(DadosFito$AB, by=list(DadosFito$Especie), FUN=mean)[2], as.numeric)
-  tabelaFito$DA <- sapply((tabelaFito$NI / (numParcelas * (Parametros$AreaParc/10000))), as.numeric)
+  tabelaFito$NPO <- as.numeric(sapply(tempNPO[2], as.integer))
+  tabelaFito$DAP <- sapply(aggregate(DadosFito$DAP, by=list(DadosFito$Especie), FUN=mean)[2], as.double)
+  tabelaFito$Alt <- sapply(aggregate(DadosFito$Altura, by=list(DadosFito$Especie), FUN=mean)[2], as.double)
+  tabelaFito$AB <- sapply(aggregate(DadosFito$AB, by=list(DadosFito$Especie), FUN=mean)[2], as.double)
+  tabelaFito$DA <- sapply((tabelaFito$NI / (numParcelas * (Parametros$AreaParc/10000))), as.double)
   tabelaFito$DR <- tabelaFito$DA / sum(tabelaFito$DA)
-  tabelaFito$DoA <- sapply((tabelaFito$AB / (numParcelas * (Parametros$AreaParc/10000))), as.numeric)
+  tabelaFito$DoA <- sapply((tabelaFito$AB / (numParcelas * (Parametros$AreaParc/10000))), as.double)
   tabelaFito$DoR <- tabelaFito$DoA / sum(tabelaFito$DoA)
   tabelaFito$FA <- sapply((tabelaFito$NPO / numParcelas), as.numeric)
   tabelaFito$FR <- tabelaFito$FA / sum(tabelaFito$FA)
@@ -271,23 +274,120 @@ calcTabelaFito <- function(DadosFito, Parametros){
   
   tabelaFito <- bind_rows(tabelaFito, tabelaTotal)
   
-  tabelaFito$DAP <- round(tabelaFito$DAP, 1)
-  tabelaFito$Alt <- round(tabelaFito$Alt, 1)
-  tabelaFito$AB <- round(tabelaFito$AB, 5)
+  tabelaFito$DAP <- as.numeric(round(tabelaFito$DAP, 1))
+  tabelaFito$Alt <- as.numeric(round(tabelaFito$Alt, 1))
+  tabelaFito$AB <- as.numeric(round(tabelaFito$AB, 5))
   tabelaFito$DA <- round(tabelaFito$DA, 5)
-  tabelaFito$DR <- round(tabelaFito$DR, 2)
+  tabelaFito$DR <- round(tabelaFito$DR, 4)
   tabelaFito$DoA <- round(tabelaFito$DoA, 5)
-  tabelaFito$DoR <- round(tabelaFito$DoR, 2)
-  tabelaFito$FA <- round(tabelaFito$FA, 5)
-  tabelaFito$FR <- round(tabelaFito$FR, 2)
-  tabelaFito$IVI <- round(tabelaFito$IVI, 2)
-  tabelaFito$IVIR <- round(tabelaFito$IVIR, 2)
+  tabelaFito$DoR <- round(tabelaFito$DoR, 4)
+  tabelaFito$FA <- round(tabelaFito$FA, 4)
+  tabelaFito$FR <- round(tabelaFito$FR, 4)
+  tabelaFito$IVI <- round(tabelaFito$IVI, 4)
+  tabelaFito$IVIR <- round(tabelaFito$IVIR, 4)
   
   colnames(tabelaFito) <- c("Espécie", "NI", "NPO", "DAP Médio", "Alt. Média", "AB", "DA", "DR", "DoA", "DoR", "FA", "FR", "IVI", "IVI %")
 
   return(tabelaFito)
 }
 
+
+salvarXLSX <- function(DadosBrutos, VolParcela, Volumetria, DistDiam, DistAlt, Fitossociologia, GrafDistDiam, GrafDistAlt, GrafEstrato) {
+  
+  Workbook <- openxlsx::createWorkbook()
+  
+  addWorksheet(Workbook, "Dados")
+  addWorksheet(Workbook, "Volumetria")
+  addWorksheet(Workbook, "Perfil")
+  addWorksheet(Workbook, "Fitossociologia")
+  
+  headerStyle <- createStyle(fontColour = "#000000", halign = "center", fgFill = "#99BB99", border = "TopBottom", borderColour = "#000000")
+  
+  bodyBottomStyle <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", border="Bottom", borderColour = "#000000") #estilo do corpo 1
+ 
+  bodyTopBottomStyle <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", border="TopBottom", borderColour = "#000000") #estilo do corpo 2
+
+  bodyNoneStyle <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", borderStyle="none", borderColour = "#000000") #estilo do corpo 3
+  
+  #inicio da escrita de Dados
+
+  writeData(Workbook, "Dados", DadosBrutos, 1, 1, colNames=TRUE)
+  
+  addStyle(Workbook, sheet = "Dados", headerStyle, rows = 1, cols=1:ncol(DadosBrutos), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Dados", bodyNoneStyle, rows = 2:nrow(DadosBrutos), cols=1:ncol(DadosBrutos), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Dados", bodyBottomStyle, rows = nrow(DadosBrutos)+1, cols=1:ncol(DadosBrutos), gridExpand = TRUE)
+ 
+ setColWidths(Workbook, "Dados", cols = 1:ncol(DadosBrutos), widths = "auto")
+  
+  #inicio da escrita de volumetria
+  
+  writeData(Workbook, "Volumetria", VolParcela, 1, 1, colNames=TRUE)
+  
+  addStyle(Workbook, sheet = "Volumetria", headerStyle, rows = 1, cols=1:ncol(VolParcela), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Volumetria", bodyNoneStyle, rows = 2:nrow(VolParcela), cols=1:ncol(VolParcela), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Volumetria", bodyBottomStyle, rows = nrow(VolParcela)+1, cols=1:ncol(VolParcela), gridExpand = TRUE)
+ 
+ setColWidths(Workbook, "Volumetria", cols = 1:ncol(VolParcela), widths = "auto")
+  
+  
+  writeData(Workbook, "Volumetria", Volumetria, (ncol(VolParcela) + 2), 1, colNames=TRUE)
+  
+  addStyle(Workbook, sheet = "Volumetria", headerStyle, rows = 1, cols=(ncol(VolParcela) + 2):(ncol(VolParcela) + 2 +ncol(VolParcela)), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Volumetria", bodyNoneStyle, rows = 2:nrow(Volumetria), cols=(ncol(VolParcela) + 2):(ncol(VolParcela) + 2 +ncol(VolParcela)), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Volumetria", bodyBottomStyle, rows = nrow(Volumetria)+1, cols=(ncol(VolParcela) + 2):(ncol(VolParcela) + 2 +ncol(VolParcela)), gridExpand = TRUE)
+ 
+ setColWidths(Workbook, "Volumetria", cols = (ncol(VolParcela) + 2):(ncol(VolParcela) + 2 +ncol(VolParcela)), widths = "auto")
+  
+  
+  #inicio da escrita do perfil
+  
+  writeData(Workbook, "Perfil", DistDiam, 1, 1, colNames=TRUE)
+  
+  addStyle(Workbook, sheet = "Perfil", headerStyle, rows = 1, cols=1:ncol(DistDiam), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Perfil", bodyNoneStyle, rows = 2:nrow(DistDiam), cols=1:ncol(DistDiam), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Perfil", bodyTopBottomStyle, rows = nrow(DistDiam)+1, cols=1:ncol(DistDiam), gridExpand = TRUE)
+ 
+ setColWidths(Workbook, "Perfil", cols = 1:ncol(DistDiam), widths = "auto")
+  
+ 
+  writeData(Workbook, "Perfil", DistAlt, 1, nrow(DistDiam) + 4, colNames=TRUE)
+  
+  addStyle(Workbook, sheet = "Perfil", headerStyle, rows = (nrow(DistDiam) + 4), cols=1:ncol(DistAlt), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Perfil", bodyNoneStyle, rows = (nrow(DistDiam) + 5):(nrow(DistDiam) + 4 + nrow(DistAlt)), cols=1:ncol(DistAlt), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Perfil", bodyBottomStyle, rows = (nrow(DistDiam) + 4 + nrow(DistAlt)), cols=1:ncol(DistAlt), gridExpand = TRUE)
+ 
+ setColWidths(Workbook, "Perfil", cols = 1:ncol(DistAlt), widths = "auto")
+  
+  insertImage(Workbook, "Perfil", "GrafDistDiam.png", 6, 4, startCol = 4, startRow = 2)
+  insertImage(Workbook, "Perfil", "GrafDistAlt.png", 6, 4, startCol = 12, startRow = 2)
+  insertImage(Workbook, "Perfil", "GrafEstrAlt.png", 6, 4, startCol = 4, startRow = 23)
+  
+  #inicio da escrita da fitossociologia
+  
+  writeData(Workbook, "Fitossociologia", Fitossociologia, 1, 1, colNames=TRUE)
+  
+    addStyle(Workbook, sheet = "Fitossociologia", headerStyle, rows = 1, cols=1:ncol(Fitossociologia), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Fitossociologia", bodyNoneStyle, rows = 2:nrow(Fitossociologia), cols=1:ncol(Fitossociologia), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Fitossociologia", bodyTopBottomStyle, rows = nrow(Fitossociologia)+1, cols=1:ncol(Fitossociologia), gridExpand = TRUE)
+ 
+ setColWidths(Workbook, "Fitossociologia", cols = 1:ncol(Fitossociologia), widths = "auto")
+  
+  #salvar o arquivo
+  saveWorkbook(Workbook, "ACS-Resultado.xlsx", overwrite = TRUE)
+  
+}
 
 ```
 
@@ -305,17 +405,27 @@ Parametros <- receberParametros()
 Volumetria <- calcParamInventario(DadosVol, Parametros)
 DistDiametrica <- calcDistDiametrica(DadosImportados)
 DistAltura <- calcDistAltura(DadosImportados)
-GraficoEstratoAltura <- plotarEstratVertical(calcTabelaClasseAltura(DadosImportados))
 
-tempDistAlturas <- data.frame(X=factor(DistAltura[1:3,1], levels = DistAltura[1:3,1]), Y=as.numeric(DistAltura[1:3,2]))
-GraficoClasseAltura <- plotarGrafBarras(tempDistAlturas, tempDistAlturas$X, tempDistAlturas$Y, "Distribuição Hipsométrica", "Classe (m)", "Num. Fustes") #chama a função
+png(filename = "GrafEstrAlt.png", height = 400, width = 600)
+  GraficoEstratoAltura <- plotarEstratVertical(calcTabelaClasseAltura(DadosImportados))
+  print(GraficoEstratoAltura)
+dev.off()
 
-tempDistDiam <- data.frame(X=factor(DistDiametrica[1:nrow(DistDiametrica)-1,1], levels = DistDiametrica[1:nrow(DistDiametrica)-1,1]), Y=as.numeric(DistDiametrica[1:nrow(DistDiametrica)-1,2]))
-GraficoClasseDiametro <- plotarGrafBarras(tempDistDiam, tempDistDiam$X, tempDistDiam$Y, "Distribuição Diamétrica", "Classe (cm)", "Num. Fustes") #chama a função
+png("GrafDistAlt.png", height = 400, width = 600) 
+  tempDistAlturas <- data.frame(X=factor(DistAltura[1:3,1], levels = DistAltura[1:3,1]), Y=as.numeric(DistAltura[1:3,2]))
+  GraficoClasseAltura <- plotarGrafBarras(tempDistAlturas, tempDistAlturas$X, tempDistAlturas$Y, "Distribuição Hipsométrica", "Classe (m)", "Num. Fustes") #chama a função
+  print(GraficoClasseAltura)
+dev.off()
+
+png("GrafDistDiam.png", height = 400, width = 600)
+  tempDistDiam <- data.frame(X=factor(DistDiametrica[1:nrow(DistDiametrica)-1,1], levels = DistDiametrica[1:nrow(DistDiametrica)-1,1]), Y=as.numeric(DistDiametrica[1:nrow(DistDiametrica)-1,2]))
+  GraficoClasseDiametro <- plotarGrafBarras(tempDistDiam, tempDistDiam$X, tempDistDiam$Y, "Distribuição Diamétrica", "Classe (cm)", "Num. Fustes") #chama a função
+  print(GraficoClasseDiametro)
+dev.off()
 
 Fitossociologia <- calcTabelaFito(DadosImportados, Parametros) #chama a função de fitossociologia
-GraficoEstratoAltura
-GraficoClasseAltura
-GraficoClasseDiametro
+
+salvarXLSX(DadosImportados, DadosVol, Volumetria, DistDiametrica, DistAltura, Fitossociologia, GraficoClasseDiametro, GraficoClasseAltura, GraficoEstratoAltura)
+
 ```
 
