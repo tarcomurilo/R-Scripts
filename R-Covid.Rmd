@@ -1,0 +1,34 @@
+
+
+```{r}
+dtCov <- read.csv("covid12.csv", header = TRUE, sep = ";", na.strings = "", encoding = "UTF-8")
+```
+
+
+```{r}
+library(ggplot2)
+library(zoo)
+dtCov$difObito <- c(dtCov$obitosNovos[1], tail(dtCov$obitosNovos, -1) - head(dtCov$obitosNovos,-1))
+
+```
+
+
+```{r}
+data2 <- data.frame(subset(dtCov, select=c(estado, data, obitosNovos)))
+
+data2$data <- as.Date(data2$data)
+
+data3 <- aggregate(data2$obitosNovos, list(data2$estado, data2$data), sum)
+colnames(data3) <- c("estado","data", "obitosNovos")
+colnames(data2) <- c("data", "obitosNovos")
+
+media <- c(replicate(6,0), rollmean(data3$obitosNovos, 7, align="right"))
+
+
+base <- ggplot(data3, aes(data, obitosNovos)) + geom_point(size=.8, colour="#BB1111") + labs(title="Óbitos - Covid-19", x="Dias", y="Nº de Óbitos Novos") + theme(panel.background = element_rect(fill="#F9E0E0", colour="#AABBAA"), plot.title = element_text(hjust=0.5)) #+ geom_line(aes(data, media), colour="#bb2222", size=0.8)
+
+base
+
+
+
+```

@@ -26,9 +26,9 @@ ImportarDados <- function(){
 #Acrescenta Colunas de Dados: dap, AB, Vol
 calcDAV <- function(DadosTemp){
   
-  DadosTemp$DAP <- (DadosTemp$CAP / pi)
-  DadosTemp$AB <- (pi/40000) * (DadosTemp$DAP ^ 2)
-  DadosTemp$VTcc <- exp(-9.77830707 + 2.1472609409 * log(DadosTemp$DAP, exp(1)) + 0.7804098114 * log(DadosTemp$Altura, exp(1)))
+  DadosTemp$DAP <- round(DadosTemp$CAP / pi, 2)
+  DadosTemp$AB <- round((pi/40000) * (DadosTemp$DAP ^ 2), 5)
+  DadosTemp$VTcc <- round(exp(-9.77830707 + 2.1472609409 * log(DadosTemp$DAP, exp(1)) + 0.7804098114 * log(DadosTemp$Altura, exp(1))),5)
   DadosTemp <- DadosTemp[, c(1, 2, 3, 4, 5, 7, 6, 8, 9)] #modificar ordem das colunas
   
   return(DadosTemp)
@@ -37,9 +37,9 @@ calcDAV <- function(DadosTemp){
 #calcula a tabela de volume por parcela
 calcVolumeTab <- function(DadosTemp){
   
-  DadosVol <- aggregate(DadosTemp$VTcc, by=list(DadosTemp$Parcela), FUN=sum)
+  DadosVol <- aggregate(round(DadosTemp$VTcc, 5), by=list(DadosTemp$Parcela), FUN=sum)
   colnames(DadosVol)[c(1,2)]<- c("Parcela","VTcc", "VolST")
-  DadosVol$VolST <- DadosVol$VTcc * 1.5
+  DadosVol$VolST <- round(DadosVol$VTcc * 1.5, 5)
   
   return(DadosVol)
 }
@@ -89,7 +89,7 @@ calcParamInventario <- function(DadosVol, Parametros){
       tMedia <- mean(DadosVol$VTcc)
       tDesvioPadrao <- sd(DadosVol$VTcc)
       tVariancia <- tDesvioPadrao ^ 2
-      tCoefVariacao <- tDesvioPadrao / tMedia
+      tCoefVariacao <-tDesvioPadrao / tMedia
       tValorT <- inv.t.bc(Parametros$Probabilidade, nrow(DadosVol)-1)
       tNumMaxParcelas <- as.integer(ceiling((Parametros$AreaTotal * 10000) / Parametros$AreaParc))
      
@@ -116,11 +116,16 @@ calcParamInventario <- function(DadosVol, Parametros){
       tVolMin <- tVolMed - tVolMed * tErroAmostragem
       tVolMax <- tVolMed + tVolMed * tErroAmostragem
       
-      ParamACS$Valor <- c(Parametros$AreaTotal, sum(DadosVol$VTcc), tNumMaxParcelas,
-                          Parametros$AreaParc, nrow(DadosVol), round(tMedia,5),
-                          tVariancia, tDesvioPadrao, tValorT,
-                          Parametros$ErroMax, tCoefVariacao * 100, tErroPadMedia * 100, tErroAmostragem * 100,
-                          tValorNn, tVolMin, tVolMed, tVolMax, tVolMin * fatorEstereo, tVolMed * fatorEstereo, tVolMax * fatorEstereo)
+      ParamACS$Valor <- c(round(Parametros$AreaTotal, 4), round(sum(DadosVol$VTcc), 5),   
+                          tNumMaxParcelas, Parametros$AreaParc, nrow(DadosVol), round(tMedia, 5),
+                          round(tVariancia, 5), round(tDesvioPadrao, 5), round(tValorT, 5),
+                          round(Parametros$ErroMax,5), round(tCoefVariacao * 100, 5),
+                          round(tErroPadMedia * 100, 5), round(tErroAmostragem * 100, 5),
+                          round(tValorNn, 5), round(tVolMin, 5),
+                          round(tVolMed,5), round(tVolMax, 5),
+                          round(tVolMin * fatorEstereo, 5),
+                          round(tVolMed * fatorEstereo, 5),
+                          round(tVolMax * fatorEstereo, 5))
 
     return(ParamACS)
 } 
@@ -265,7 +270,7 @@ calcTabelaFito <- function(DadosFito, Parametros){
                             DR = sum(tabelaFito$DR),
                             DoA = sum(tabelaFito$DoA),
                             DoR = sum(tabelaFito$DoR),
-                            FA = numParcelas,
+                            FA = sum(tabelaFito$FA),
                             FR = sum(tabelaFito$FR),
                             IVI = sum(tabelaFito$IVI),
                             IVIR = sum(tabelaFito$IVIR)
@@ -301,13 +306,23 @@ salvarXLSX <- function(DadosBrutos, VolParcela, Volumetria, DistDiam, DistAlt, F
   addWorksheet(Workbook, "Perfil")
   addWorksheet(Workbook, "Fitossociologia")
   
+  numFormat = "0.0%"
+  
   headerStyle <- createStyle(fontColour = "#000000", halign = "center", fgFill = "#99BB99", border = "TopBottom", borderColour = "#000000")
   
   bodyBottomStyle <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", border="Bottom", borderColour = "#000000") #estilo do corpo 1
+  
+  bodyBottomStylePerc <- createStyle(fontColour = "#000000", numFmt = numFormat, fgFill = "#FFFFFF", border="Bottom", borderColour = "#000000") #estilo do corpo 1
  
   bodyTopBottomStyle <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", border="TopBottom", borderColour = "#000000") #estilo do corpo 2
+  
+  bodyTopBottomStylePerc <- createStyle(fontColour = "#000000", numFmt = numFormat, fgFill = "#FFFFFF", border="TopBottom", borderColour = "#000000") #estilo do corpo 2
 
   bodyNoneStyle <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", borderStyle="none", borderColour = "#000000") #estilo do corpo 3
+  
+  bodyNoneStylePerc <- createStyle(fontColour = "#000000", fgFill = "#FFFFFF", borderStyle="none", numFmt = numFormat, borderColour = "#000000") #estilo do corpo 3
+  
+  
   
   #inicio da escrita de Dados
 
@@ -380,9 +395,13 @@ salvarXLSX <- function(DadosBrutos, VolParcela, Volumetria, DistDiam, DistAlt, F
   
   addStyle(Workbook, sheet = "Fitossociologia", bodyNoneStyle, rows = 2:nrow(Fitossociologia), cols=1:ncol(Fitossociologia), gridExpand = TRUE)
   
+  addStyle(Workbook, sheet = "Fitossociologia", bodyNoneStylePerc, rows = 2:nrow(Fitossociologia), cols=c(8, 10, 11, 12, 13, 14), gridExpand = TRUE)
+  
   addStyle(Workbook, sheet = "Fitossociologia", bodyTopBottomStyle, rows = nrow(Fitossociologia)+1, cols=1:ncol(Fitossociologia), gridExpand = TRUE)
+  
+  addStyle(Workbook, sheet = "Fitossociologia", bodyTopBottomStylePerc, rows = nrow(Fitossociologia)+1, cols=c(8, 10, 11, 12, 13, 14), gridExpand = TRUE)
  
- setColWidths(Workbook, "Fitossociologia", cols = 1:ncol(Fitossociologia), widths = "auto")
+  setColWidths(Workbook, "Fitossociologia", cols = 1:ncol(Fitossociologia), widths = "auto")
   
   #salvar o arquivo
   saveWorkbook(Workbook, "ACS-Resultado.xlsx", overwrite = TRUE)
