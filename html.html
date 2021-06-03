@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+         http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+<!-- Created by igraph -->
+  <key id="v_name" for="node" attr.name="name" attr.type="string"/>
+  <key id="v_peso" for="node" attr.name="peso" attr.type="double"/>
+  <key id="v_type" for="node" attr.name="type" attr.type="string"/>
+  <key id="e_Tipo" for="edge" attr.name="Tipo" attr.type="string"/>
+  <graph id="G" edgedefault="directed">
+    <node id="n0">
+      <data key="v_name">Fernando</data>
+      <data key="v_peso">10</data>
+      <data key="v_type">Pessoas</data>
+    </node>
+    <node id="n1">
+      <data key="v_name">Jorge</data>
+      <data key="v_peso">30</data>
+      <data key="v_type">Pessoas</data>
+    </node>
+    <node id="n2">
+      <data key="v_name">Lucas</data>
+      <data key="v_peso">40</data>
+      <data key="v_type">Pessoas</data>
+    </node>
+    <node id="n3">
+      <data key="v_name">Leia</data>
+      <data key="v_peso">10</data>
+      <data key="v_type">Pessoas</data>
+    </node>
+    <edge source="n0" target="n1">
+      <data key="e_Tipo">Amigo</data>
+    </edge>
+    <edge source="n1" target="n2">
+      <data key="e_Tipo">Inimigo</data>
+    </edge>
+    <edge source="n2" target="n3">
+      <data key="e_Tipo">Neutro</data>
+    </edge>
+    <edge source="n0" target="n3">
+      <data key="e_Tipo">Amigo</data>
+    </edge>
+  </graph>
+</graphml>
